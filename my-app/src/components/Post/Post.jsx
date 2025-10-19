@@ -1,13 +1,12 @@
 // src/components/Post/Post.jsx
 import React, { useState, useEffect } from 'react';
 import { getHashtagsForPost } from '../../services/api';
-import '../../assets/Post.css'; // We will create this
+import CommentSection from './CommentSection.jsx'; // <-- 1. Import new component
 
 function Post({ post }) {
-  // 'post' prop comes from FeedPage (it has name, content, etc.)
   const [hashtags, setHashtags] = useState([]);
+  const [showComments, setShowComments] = useState(false); // <-- 2. Add state
 
-  // When the component loads, fetch its own hashtags
   useEffect(() => {
     getHashtagsForPost(post.post_id)
       .then(response => {
@@ -16,19 +15,24 @@ function Post({ post }) {
       .catch(err => {
         console.error("Error fetching hashtags:", err);
       });
-  }, [post.post_id]); // Re-run if the post ID changes
+  }, [post.post_id]);
 
   return (
     <div className="post-container">
+      {/* --- Post Header --- */}
       <div className="post-header">
-        <span className="post-author">{post.name}</span> {/* From the JOIN */}
+        <span className="post-author">{post.name}</span>
         <span className="post-time">
           {new Date(post.content_sent_at).toLocaleString()}
         </span>
       </div>
+      
+      {/* --- Post Content --- */}
       <div className="post-content">
         <p>{post.content}</p>
       </div>
+      
+      {/* --- Post Footer --- */}
       <div className="post-footer">
         <div className="post-hashtags">
           {hashtags.map((tag, index) => (
@@ -37,10 +41,18 @@ function Post({ post }) {
             </span>
           ))}
         </div>
-        <button className="comment-button">
+        
+        {/* --- 3. Update onClick --- */}
+        <button 
+          className="comment-button"
+          onClick={() => setShowComments(!showComments)}
+        >
           Comment
         </button>
       </div>
+      
+      {/* --- 4. Conditionally render the CommentSection --- */}
+      {showComments && <CommentSection postId={post.post_id} />}
     </div>
   );
 }
