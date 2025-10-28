@@ -1,31 +1,25 @@
-// src/components/Post/CreatePostForm.jsx
+// my-app/src/components/Post/CreatePostForm.jsx
 import React, { useState } from 'react';
 import { createPost } from '../../services/api';
-import { useAuth } from '../../context/AuthContext'; // <-- 1. Import
+import { useAuth } from '../../context/AuthContext';
 
 function CreatePostForm({ onPostCreated }) {
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState('');
-  const { currentUser } = useAuth(); // <-- 2. Get the logged-in user
+  const { currentUser } = useAuth();
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!content.trim()) {
-      setError('Post cannot be empty.');
-      return;
-    }
-    if (!currentUser) { // Safety check
-      setError('You must be logged in to post.');
-      return;
-    }
+    if (!content.trim()) return setError('Post cannot be empty.');
+    if (!currentUser) return setError('You must be logged in to post.');
 
     setIsPosting(true);
     setError('');
 
+    // UPDATED: We only send the content.
     const postData = {
       content: content,
-      user_id: currentUser.user_id // <-- 3. Use the real user ID
     };
 
     createPost(postData)
@@ -40,8 +34,7 @@ function CreatePostForm({ onPostCreated }) {
         setIsPosting(false);
       });
   };
-  
-  // ... (return statement is the same)
+
   return (
     <div className="create-post-container">
       <h2>Create a New Post</h2>

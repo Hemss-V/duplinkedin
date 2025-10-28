@@ -1,7 +1,7 @@
-// src/components/Post/CommentSection.jsx
+// my-app/src/components/Post/CommentSection.jsx
 import React, { useState, useEffect } from 'react';
 import { getCommentsForPost, addComment } from '../../services/api';
-import { useAuth } from '../../context/AuthContext'; // <-- 1. Import
+import { useAuth } from '../../context/AuthContext';
 
 function CommentSection({ postId }) {
   const [comments, setComments] = useState([]);
@@ -9,9 +9,8 @@ function CommentSection({ postId }) {
   const [error, setError] = useState(null);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { currentUser } = useAuth(); // <-- 2. Get the logged-in user
+  const { currentUser } = useAuth();
 
-  // ... (fetchComments and useEffect are the same)
   const fetchComments = () => {
     setLoading(true);
     getCommentsForPost(postId)
@@ -21,16 +20,15 @@ function CommentSection({ postId }) {
   };
   useEffect(() => { fetchComments(); }, [postId]);
 
-
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!newComment.trim() || !currentUser) return; // Safety check
+    if (!newComment.trim() || !currentUser) return;
 
     setIsSubmitting(true);
     
+    // UPDATED: We only send the content.
     const commentData = {
       comment_content: newComment,
-      commenter_id: currentUser.user_id // <-- 3. Use the real user ID
     };
 
     addComment(postId, commentData)
@@ -46,7 +44,6 @@ function CommentSection({ postId }) {
       });
   };
 
-  // ... (return statement is the same)
   return (
     <div className="comment-section">
       <form className="add-comment-form" onSubmit={handleSubmit}>
@@ -65,11 +62,9 @@ function CommentSection({ postId }) {
       <div className="comment-list">
         {loading && <div>Loading comments...</div>}
         {error && <div className="error-message">{error}</div>}
-        
         {!loading && comments.length === 0 && (
           <div className="no-comments">Be the first to comment.</div>
         )}
-        
         {!loading && comments.map((comment, index) => (
           <div key={index} className="comment">
             <span className="comment-author">{comment.name}</span>

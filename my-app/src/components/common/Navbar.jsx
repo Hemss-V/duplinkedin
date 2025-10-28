@@ -1,15 +1,15 @@
-// src/components/common/Navbar.jsx
+// my-app/src/components/common/Navbar.jsx
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext.jsx'; // <-- 1. Import
+import { useAuth } from '../../context/AuthContext.jsx';
 
 function Navbar() {
-  const { currentUser, logout } = useAuth(); // <-- 2. Get user and logout function
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    navigate('/login'); // Redirect to login page after logout
+    navigate('/login');
   };
 
   return (
@@ -22,9 +22,12 @@ function Navbar() {
       </div>
       <div className="navbar-links">
         {currentUser ? (
-          // --- If user IS logged in ---
           <>
-            <Link to="/profile" className="navbar-button">
+            {/* --- UPDATED LINK --- */}
+            <Link 
+              to={`/profile/${currentUser.user_id}`} 
+              className="navbar-button"
+            >
               Profile
             </Link>
             <button onClick={handleLogout} className="navbar-button-logout">
@@ -32,14 +35,9 @@ function Navbar() {
             </button>
           </>
         ) : (
-          // --- If user is NOT logged in ---
           <>
-            <Link to="/login" className="navbar-button">
-              Login
-            </Link>
-            <Link to="/register" className="navbar-button">
-              Register
-            </Link>
+            <Link to="/login" className="navbar-button">Login</Link>
+            <Link to="/register" className="navbar-button">Register</Link>
           </>
         )}
       </div>

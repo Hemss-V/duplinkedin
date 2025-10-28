@@ -1,38 +1,42 @@
-// src/components/Post/Post.jsx
+// my-app/src/components/Post/Post.jsx
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // <-- 1. Import Link
 import { getHashtagsForPost } from '../../services/api';
-import CommentSection from './CommentSection.jsx'; // <-- 1. Import new component
+import CommentSection from './CommentSection.jsx';
 
 function Post({ post }) {
   const [hashtags, setHashtags] = useState([]);
-  const [showComments, setShowComments] = useState(false); // <-- 2. Add state
+  const [showComments, setShowComments] = useState(false);
 
   useEffect(() => {
-    getHashtagsForPost(post.post_id)
-      .then(response => {
-        setHashtags(response.data);
-      })
-      .catch(err => {
-        console.error("Error fetching hashtags:", err);
-      });
+    // Check if post.post_id exists before fetching
+    if (post.post_id) {
+      getHashtagsForPost(post.post_id)
+        .then(response => {
+          setHashtags(response.data);
+        })
+        .catch(err => {
+          console.error(`Error fetching hashtags for post ${post.post_id}:`, err);
+        });
+    }
   }, [post.post_id]);
 
   return (
     <div className="post-container">
-      {/* --- Post Header --- */}
       <div className="post-header">
-        <span className="post-author">{post.name}</span>
+        {/* --- 2. Wrap name in a Link --- */}
+        <Link to={`/profile/${post.user_id}`} className="post-author-link">
+          <span className="post-author">{post.name}</span>
+        </Link>
         <span className="post-time">
           {new Date(post.content_sent_at).toLocaleString()}
         </span>
       </div>
       
-      {/* --- Post Content --- */}
       <div className="post-content">
         <p>{post.content}</p>
       </div>
       
-      {/* --- Post Footer --- */}
       <div className="post-footer">
         <div className="post-hashtags">
           {hashtags.map((tag, index) => (
@@ -42,7 +46,6 @@ function Post({ post }) {
           ))}
         </div>
         
-        {/* --- 3. Update onClick --- */}
         <button 
           className="comment-button"
           onClick={() => setShowComments(!showComments)}
@@ -51,7 +54,6 @@ function Post({ post }) {
         </button>
       </div>
       
-      {/* --- 4. Conditionally render the CommentSection --- */}
       {showComments && <CommentSection postId={post.post_id} />}
     </div>
   );

@@ -1,50 +1,38 @@
-// src/services/api.js
+// my-app/src/services/api.js
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3001/api';
 
-export const getPosts = (sortOrder = 'latest') => {
-  return axios.get(`${API_URL}/posts?sort=${sortOrder}`);
+// --- Post Endpoints ---
+export const getPosts = (sortOrder = 'latest') => axios.get(`${API_URL}/posts?sort=${sortOrder}`);
+export const createPost = (postData) => axios.post(`${API_URL}/posts`, postData);
+export const getHashtagsForPost = (postId) => axios.get(`${API_URL}/posts/${postId}/hashtags`);
+
+// --- Comment Endpoints ---
+export const getCommentsForPost = (postId) => axios.get(`${API_URL}/posts/${postId}/comments`);
+export const addComment = (postId, commentData) => axios.post(`${API_URL}/posts/${postId}/comments`, commentData);
+
+// --- User & Profile Endpoints ---
+export const getUserProfile = (userId) => axios.get(`${API_URL}/users/${userId}`);
+export const getConnectionCount = (userId) => axios.get(`${API_URL}/users/${userId}/connections/count`);
+
+// --- Messaging Endpoints ---
+export const getConversations = () => axios.get(`${API_URL}/conversations`);
+export const getConnections = () => axios.get(`${API_URL}/connections`);
+export const getMessages = (otherUserId) => axios.get(`${API_URL}/messages/${otherUserId}`);
+export const sendMessage = (messageData) => axios.post(`${API_URL}/messages`, messageData);
+
+// --- NEW Connection Management Endpoints ---
+export const getConnectionStatus = (otherUserId) => {
+  return axios.get(`${API_URL}/connections/status/${otherUserId}`);
 };
-
-// --- NEW ---
-// Sends post data to the server
-export const createPost = (postData) => {
-  // postData should be an object like { content: "...", user_id: 1 }
-  return axios.post(`${API_URL}/posts`, postData);
+export const sendConnectionRequest = (otherUserId) => {
+  return axios.post(`${API_URL}/connections/request/${otherUserId}`);
 };
-
-
-
-// src/services/api.js
-// ... (keep existing getPosts, createPost, getHashtagsForPost)
-
-export const getHashtagsForPost = (postId) => {
-  return axios.get(`${API_URL}/posts/${postId}/hashtags`);
+export const acceptConnectionRequest = (otherUserId) => {
+  return axios.put(`${API_URL}/connections/accept/${otherUserId}`);
 };
-
-// --- NEW: Get all comments for a post ---
-export const getCommentsForPost = (postId) => {
-  return axios.get(`${API_URL}/posts/${postId}/comments`);
-};
-
-// --- NEW: Add a new comment ---
-export const addComment = (postId, commentData) => {
-  // commentData = { comment_content: "...", commenter_id: 1 }
-  return axios.post(`${API_URL}/posts/${postId}/comments`, commentData);
-};
-// src/services/api.js
-// ... (keep existing functions)
-
-export const getUserProfile = (userId) => {
-  return axios.get(`${API_URL}/users/${userId}`);
-};
-
-// --- NEW: Get the connection count for a user ---
-export const getConnectionCount = (userId) => {
-  return axios.get(`${API_URL}/users/${userId}/connections/count`);
-};
-
-export const getUsers = () => {
-  return axios.get(`${API_URL}/users`);
+export const removeConnection = (otherUserId) => {
+  // Includes rejecting pending or removing existing
+  return axios.delete(`${API_URL}/connections/remove/${otherUserId}`);
 };

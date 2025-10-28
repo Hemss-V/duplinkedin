@@ -1,4 +1,4 @@
-/* src/index.css */
+/* my-app/src/index.css */
 
 /* --- 1. Define Your Color Palette --- */
 :root {
@@ -16,7 +16,6 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -34,11 +33,8 @@ body {
 .feed-container {
   max-width: 800px;
 }
-
 .profile-container {
   max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
 }
 
 /* --- 3. Element Styling --- */
@@ -52,19 +48,16 @@ a:hover {
   color: var(--teal-accent);
   text-decoration: underline;
 }
-
 h1 {
   font-size: 2.5em;
   line-height: 1.1;
   color: var(--primary-blue);
   margin-top: 0;
 }
-
 h2 {
   color: var(--primary-text-color);
   margin-top: 0;
 }
-
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -135,17 +128,14 @@ button:hover {
   margin: 20px auto;
   padding: 0 20px;
 }
-
 .left-sidebar {
   padding-top: 20px;
 }
-
 .left-sidebar nav ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .sidebar-button {
   width: 100%;
   text-align: left;
@@ -158,14 +148,32 @@ button:hover {
 .sidebar-button:hover {
   background-color: #3a5a8a;
 }
+/* --- NEW Sidebar Link Style --- */
+.sidebar-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background-color: var(--teal-accent);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 25px;
+  font-size: 1.1em;
+  text-decoration: none;
+  font-weight: 500;
+  box-sizing: border-box;
+  margin-top: 10px;
+}
+.sidebar-link:hover {
+  background-color: #3aa19e;
+  text-decoration: none;
+  color: white;
+}
+
 
 /* --- 7. Modal Styles --- */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
@@ -173,7 +181,6 @@ button:hover {
   z-index: 1000;
   backdrop-filter: blur(4px);
 }
-
 .modal-content {
   background-color: var(--card-background-color);
   padding: 20px 30px;
@@ -183,11 +190,9 @@ button:hover {
   max-width: 500px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
-
 .modal-close-button {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 10px; right: 10px;
   background: none;
   border: none;
   font-size: 2rem;
@@ -202,8 +207,7 @@ button:hover {
   border: none;
 }
 
-/* --- 8. Component-Specific Styles --- */
-/* Navbar Styles */
+/* --- 8. Navbar Styles --- */
 .navbar {
   display: flex;
   justify-content: space-between;
@@ -238,8 +242,23 @@ button:hover {
 .navbar-button:hover {
   background-color: #3a5a8a;
 }
+.navbar-button-logout {
+  padding: 8px 16px;
+  background-color: #f0f0f0;
+  color: var(--secondary-text-color);
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  margin-left: 10px;
+}
+.navbar-button-logout:hover {
+  background-color: #e0e0e0;
+}
 
-/* Post Component Styles */
+
+/* --- 9. Post Component Styles --- */
 .post-container {
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -300,65 +319,93 @@ button:hover {
   background-color: #e0e0e0;
 }
 
-/* --- 9. Comment Section Styles --- */
+/* --- 10. Comment Section Styles --- */
 .comment-section {
   padding: 0 16px 16px 16px;
   border-top: 1px solid var(--border-color);
-  background-color: #f9f9f9; /* A slightly different background */
+  background-color: #f9f9f9;
 }
-
 .comment-list {
-  max-height: 300px; /* This makes the list scrollable */
+  max-height: 300px;
   overflow-y: auto;
   margin-top: 15px;
 }
-
 .comment {
   margin-bottom: 12px;
 }
-
 .comment-author {
   font-weight: 600;
   font-size: 0.9em;
   color: var(--primary-text-color);
 }
-
 .comment-content {
   margin: 2px 0 0 0;
   font-size: 0.95em;
 }
-
 .no-comments {
   font-size: 0.9em;
   color: var(--secondary-text-color);
-  text-align: left; /* <-- THIS IS THE FIX */
+  text-align: left;
   padding: 10px 0;
 }
-
-/* --- Add Comment Form Styles --- */
 .add-comment-form {
   display: flex;
   gap: 8px;
   margin-top: 16px;
   width: 100%;
 }
-
 .add-comment-form input {
-  flex-grow: 1; /* Makes the input take up available space */
+  flex-grow: 1;
   padding: 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: 20px;
   font-size: 0.95em;
 }
-
 .add-comment-form button {
   padding: 0.4em 1em;
   font-size: 0.9em;
   border-radius: 20px;
 }
-/* ... (at the bottom of your existing CSS) */
 
-/* --- 11. Auth Page Styles --- */
+/* --- 11. Profile Page Styles --- */
+.profile-card {
+  background-color: var(--card-background-color);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.profile-headline {
+  font-size: 1.25rem;
+  color: var(--secondary-text-color);
+  margin-top: -15px;
+  margin-bottom: 20px;
+}
+.profile-connections {
+  font-weight: 600;
+  color: var(--primary-blue);
+  font-size: 0.9em;
+}
+.profile-summary {
+  margin-top: 20px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 20px;
+}
+.profile-summary h2 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+.add-job-button {
+  background-color: var(--teal-accent);
+  margin: 10px 0;
+  font-weight: 600;
+}
+.add-job-button:hover {
+  background-color: #3aa19e;
+}
+
+
+/* --- 12. Auth Page Styles --- */
 .auth-container {
   display: flex;
   justify-content: center;
@@ -366,7 +413,6 @@ button:hover {
   min-height: 100vh;
   background-color: var(--background-color);
 }
-
 .auth-form {
   background-color: var(--card-background-color);
   padding: 2rem;
@@ -375,13 +421,11 @@ button:hover {
   width: 100%;
   max-width: 400px;
 }
-
 .auth-form h2 {
   text-align: center;
   color: var(--primary-blue);
   margin-bottom: 1.5rem;
 }
-
 .auth-form input,
 .auth-form textarea,
 .auth-form select {
@@ -390,40 +434,202 @@ button:hover {
   margin-bottom: 1rem;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  box-sizing: border-box; /* Important! */
+  box-sizing: border-box; 
   font-family: inherit;
   font-size: 1rem;
 }
-
 .auth-form textarea {
   resize: vertical;
   min-height: 80px;
 }
-
 .auth-form button {
   width: 100%;
   padding: 12px;
   font-size: 1.1rem;
 }
-
 .auth-switch {
   text-align: center;
   margin-top: 1rem;
   font-size: 0.9em;
 }
 
-/* New Logout Button Style */
-.navbar-button-logout {
-  padding: 8px 16px;
-  background-color: #f0f0f0;
-  color: var(--secondary-text-color);
-  text-decoration: none;
-  border-radius: 4px;
+/* --- 13. NEW: Messaging Page Layout --- */
+.messaging-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr; /* Sidebar and Main Chat */
+  height: calc(100vh - 70px); /* Full height minus navbar */
+  border-top: 1px solid var(--border-color);
+}
+.chat-sidebar {
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+.chat-sidebar-header {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+.chat-sidebar-header button {
+  flex: 1;
+  padding: 1rem;
+  font-size: 1rem;
   font-weight: 600;
   border: none;
-  cursor: pointer;
-  margin-left: 10px;
+  background: none;
+  color: var(--secondary-text-color);
+  border-bottom: 3px solid transparent;
 }
-.navbar-button-logout:hover {
+.chat-sidebar-header button.active {
+  color: var(--primary-blue);
+  border-bottom-color: var(--primary-blue);
+}
+.chat-list {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+.chat-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.chat-list li {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+}
+.chat-list li:hover {
+  background-color: var(--background-color);
+}
+.chat-list li.active {
+  background-color: #e7f3ff;
+  border-left: 3px solid var(--primary-blue);
+}
+.chat-list-name {
+  display: block;
+  font-weight: 600;
+  color: var(--primary-text-color);
+}
+.chat-list-preview {
+  display: block;
+  font-size: 0.9em;
+  color: var(--secondary-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- NEW: Chat Window Styles --- */
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card-background-color);
+}
+.chat-window-placeholder {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  text-align: center;
+  color: var(--secondary-text-color);
+}
+.message-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+.message-bubble {
+  padding: 0.75rem 1rem;
+  border-radius: 20px;
+  margin-bottom: 0.5rem;
+  max-width: 70%;
+  line-height: 1.4;
+}
+.message-bubble.sent {
+  background-color: var(--primary-blue);
+  color: white;
+  margin-left: auto; /* Aligns to the right */
+}
+.message-bubble.received {
+  background-color: #f0f0f0;
+  color: var(--primary-text-color);
+  margin-right: auto; /* Aligns to the left */
+}
+.message-form {
+  display: flex;
+  padding: 1rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--card-background-color);
+}
+.message-form input {
+  flex-grow: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 1rem;
+  margin-right: 1rem;
+}
+.message-form button {
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+/* ... (at the bottom of your existing CSS) */
+
+/* --- 14. Profile Page Action Styles --- */
+.profile-actions {
+  margin-top: 10px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.connect-button {
+  background-color: var(--primary-blue);
+  color: white;
+}
+.connect-button:hover {
+  background-color: #3a5a8a;
+}
+
+.message-button {
+  background-color: var(--teal-accent);
+  color: white;
+}
+.message-button:hover {
+  background-color: #3aa19e;
+}
+
+/* Make the post author link look clean */
+.post-author-link {
+  text-decoration: none;
+  color: inherit; /* Inherit color from the author span */
+}
+.post-author-link:hover .post-author {
+  text-decoration: underline;
+  color: var(--primary-blue); /* Optional: Change color on hover */
+}
+/* my-app/src/index.css */
+/* ... (keep all your existing styles above this line) ... */
+
+/* --- 15. Connection Button States --- */
+.connect-button.pending_sent,
+.connect-button.connected {
+  background-color: #f0f0f0;
+  color: var(--secondary-text-color);
+  border: 1px solid var(--border-color);
+}
+.connect-button.pending_sent:hover,
+.connect-button.connected:hover {
   background-color: #e0e0e0;
+}
+
+.connect-button.pending_received {
+  background-color: var(--light-green); /* Use a palette color */
+  color: var(--primary-text-color);
+  font-weight: 600;
+}
+.connect-button.pending_received:hover {
+  background-color: #97d389; /* Darker green */
 }

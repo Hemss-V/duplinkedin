@@ -1,12 +1,12 @@
-// src/App.jsx
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import FeedPage from './pages/FeedPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
-import LoginPage from './pages/LoginPage.jsx'; // <-- Import
-import RegisterPage from './pages/RegisterPage.jsx'; // <-- Import
-import ProtectedRoute from './components/common/ProtectedRoute.jsx'; // <-- Import
-import './App.css';
+import LoginPage from './pages/LoginPage.jsx';
+import RegisterPage from './pages/RegisterPage.jsx';
+import ProtectedRoute from './components/common/ProtectedRoute.jsx';
+import MessagingPage from './pages/MessagingPage.jsx';
+import './App.css'; // Make sure this line exists if you use App.css
 
 function App() {
   return (
@@ -17,15 +17,24 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
 
         {/* --- Protected Routes --- */}
-        {/* These routes can only be visited if the user is logged in */}
+        {/* Routes inside here require the user to be logged in */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<FeedPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          {/* We'll change /profile to /profile/:userId later */}
+          
+          {/* --- THIS IS THE CRITICAL ROUTE --- */}
+          {/* It defines the pattern for user profiles */}
+          <Route path="/profile/:userId" element={<ProfilePage />} /> 
+          
+          <Route path="/messages" element={<MessagingPage />} />
+          <Route path="/messages/:userId" element={<MessagingPage />} />
         </Route>
+        
+        {/* Optional: Add a catch-all route for unmatched paths */}
+        <Route path="*" element={<div>Page Not Found</div>} /> 
       </Routes>
     </div>
   );
 }
 
 export default App;
+
