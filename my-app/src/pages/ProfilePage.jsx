@@ -1,125 +1,119 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/ProfilePage.jsx
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 import { 
   getUserProfile, 
   getConnectionCount, 
-  getConnectionStatus,
   sendConnectionRequest, 
-  acceptConnectionRequest, 
-  removeConnection 
+  acceptConnectionRequest 
 } from '../services/api.js';
+
+// Import common components
 import Navbar from '../components/common/Navbar.jsx';
 import LeftSidebar from '../components/common/LeftSidebar.jsx';
 import Modal from '../components/common/Modal.jsx';
 import CreatePostForm from '../components/Post/CreatePostForm.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
 
 function ProfilePage() {
-  const { userId } = useParams(); 
-  const { currentUser } = useAuth();
-  const navigate = useNavigate(); 
+  const { userId } = useParams(); // Get the user ID from the URL (e.g., /profile/1)
+  const { currentUser } = useAuth(); // Get the *logged-in* user
+  const navigate = useNavigate(); // To navigate to messaging
 
   const [user, setUser] = useState(null);
   const [connectionCount, setConnectionCount] = useState(0);
-  const [connectionStatus, setConnectionStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isUpdatingConnection, setIsUpdatingConnection] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false); // For Create Post
 
-  useEffect(() => {
-    const userIdToFetch = parseInt(userId);
-    if (!userIdToFetch || !currentUser) {
-        setLoading(false); 
-        return; 
-    }
+  const isOwnProfile = currentUser?.userId === parseInt(userId);
 
+  // Function to fetch all profile data
+  const fetchProfileData = useCallback(() => {
     setLoading(true);
-    setError(null); 
+    setError(null);
 
+    // Fetch profile and connection count at the same time
     Promise.all([
-      getUserProfile(userIdToFetch),
-      getConnectionCount(userIdToFetch),
-      currentUser.user_id !== userIdToFetch ? getConnectionStatus(userIdToFetch) : Promise.resolve({ data: { status: 'same_user' } }) 
+      getUserProfile(userId),
+      getConnectionCount(userId)
     ])
-    .then(([profileResponse, countResponse, statusResponse]) => {
+    .then(([profileResponse, countResponse]) => {
       setUser(profileResponse.data);
       setConnectionCount(countResponse.data.count);
-      setConnectionStatus(statusResponse.data.status); 
-      // console.log("Connection Status Received:", statusResponse.data.status); // Keep for debugging if needed
     })
     .catch(err => {
-      console.error(`Error fetching profile data for user ${userIdToFetch}:`, err);
+      console.error("Error fetching profile data:", err);
       setError("Could not load user profile.");
     })
     .finally(() => {
       setLoading(false);
     });
-  }, [userId, currentUser]); 
+  }, [userId]); // Re-run this function if the userId in the URL changes
 
+  // Fetch data when component mounts or userId changes
+  useEffect(() => {
+    fetchProfileData();
+  }, [fetchProfileData]);
+
+  // Handler for the "Create Post" modal
   const handlePostCreated = () => {
     setIsModalOpen(false);
-    alert("Your post has been created!"); 
+    // No feed refresh needed here, just close modal
   };
-  
+
+  // Handler for the "Message" button
   const handleMessageClick = () => {
-    navigate(`/messages/${userId}`);
+    navigate(`/messages/${userId}`); // Navigate to chat page with this user
   };
 
+  // --- Connection Button Logic ---
   const handleConnectionAction = async () => {
-    if (!connectionStatus || connectionStatus === 'same_user' || !userId) return;
-    
-    setIsUpdatingConnection(true);
-    setError(null); 
-    
     try {
-      let response;
-      const otherUserId = parseInt(userId); 
-      switch(connectionStatus) {
-        case 'not_connected':
-          response = await sendConnectionRequest(otherUserId);
-          break;
-        case 'pending_sent':
-          response = await removeConnection(otherUserId); 
-          break;
-        case 'pending_received':
-          response = await acceptConnectionRequest(otherUserId);
-          break;
-        case 'connected':
-          response = await removeConnection(otherUserId);
-          break;
-        default:
-          throw new Error("Invalid connection status");
+      if (user.connectionStatus === 'not_connected') {
+        // Send connection request
+        await sendConnectionRequest(userId);
+        fetchProfileData(); // Refresh profile to show "Pending"
+      } else if (user.connectionStatus === 'pending_received') {
+        // Accept connection request
+        await acceptConnectionRequest(userId);
+        fetchProfileData(); // Refresh profile to show "Connected"
       }
-      setConnectionStatus(response.data.status); 
-      if (response.data.status === 'connected' || response.data.status === 'not_connected') {
-        getConnectionCount(otherUserId).then(res => setConnectionCount(res.data.count));
-      }
+      // Other statuses (pending_sent, connected) might have "Withdraw" or "Remove" actions later
     } catch (err) {
-        console.error("Error updating connection:", err);
-        const serverError = err.response?.data?.error || "Could not update connection. Please try again.";
-        setError(serverError);
-    } finally {
-        setIsUpdatingConnection(false);
+      console.error("Error handling connection action:", err);
+      setError("Connection action failed.");
     }
   };
 
-  const getConnectionButtonText = () => {
-    switch (connectionStatus) {
-      case 'not_connected': return 'Connect';
-      case 'pending_sent': return 'Request Sent';
-      case 'pending_received': return 'Accept Request';
-      case 'connected': return 'Connected';
-      default: return ''; 
+  // Helper to render the correct connection button
+  const renderConnectionButton = () => {
+    if (isOwnProfile) return null; // Don't show button on your own profile
+
+    switch (user.connectionStatus) {
+      case 'not_connected':
+        return <button className="connect-button not_connected" onClick={handleConnectionAction}>Connect</button>;
+      case 'pending_sent':
+        return <button className="connect-button pending_sent" disabled>Request Sent</button>;
+      case 'pending_received':
+        return <button className="connect-button pending_received" onClick={handleConnectionAction}>Accept</button>;
+      case 'connected':
+        return <button className="connect-button connected" disabled>Connected</button>;
+      default:
+        return null; // Or a loading/error state
     }
   };
+  // ------------------------------
 
-  if (loading) return <div>Loading profile...</div>;
-  if (!currentUser) return <div>Please log in to view profiles.</div>; 
-  if (error && !user) return <div style={{ color: 'red' }}>{error}</div>; 
-  if (!user) return <div>User not found.</div>;
-
-  const isOwnProfile = connectionStatus === 'same_user';
+  if (loading) {
+    return <div><Navbar /><div style={{ padding: '20px' }}>Loading profile...</div></div>;
+  }
+  if (error) {
+    return <div><Navbar /><div style={{ padding: '20px', color: 'red' }}>{error}</div></div>;
+  }
+  if (!user) {
+    return <div><Navbar /><div style={{ padding: '20px' }}>User not found.</div></div>;
+  }
 
   return (
     <div>
@@ -139,44 +133,32 @@ function ProfilePage() {
             <p className="profile-connections">Connections: {connectionCount}</p>
             
             <div className="profile-actions">
-              {!isOwnProfile && connectionStatus && ( 
-                <>
-                  {/* Connection Button (Connect/Pending/Accept/Connected) */}
-                  <button 
-                    className={`connect-button ${connectionStatus}`} 
-                    onClick={handleConnectionAction}
-                    disabled={isUpdatingConnection} 
-                  >
-                    {isUpdatingConnection ? '...' : getConnectionButtonText()}
-                  </button>
-
-                  {/* --- THIS IS THE CHANGE --- */}
-                  {/* Message Button - Now always shows if it's not your own profile */}
-                  <button className="message-button" onClick={handleMessageClick}>
-                    Message
-                  </button>
-                  {/* ------------------------ */}
-
-                </>
-              )}
-               {isOwnProfile && user.description === 0 && ( 
-                <button className="add-job-button">+ Add New Job</button>
+              {renderConnectionButton()}
+              {!isOwnProfile && user.connectionStatus === 'connected' && (
+                <button className="message-button" onClick={handleMessageClick}>Message</button>
               )}
             </div>
-
-            {/* Display connection error if any */}
-            {error && <p className="error-message" style={{marginBottom: '15px'}}>{error}</p>}
+            
+            {/* Conditional "Add New Job" Button */}
+            {isOwnProfile && user.description === 0 && (
+              <button className="add-job-button" onClick={() => navigate('/post-job')}>
+                + Add New Job / View Responses
+              </button>
+            )}
 
             <div className="profile-summary">
               <h2>Summary</h2>
-              <p>{user.summary}</p>
+              <p>{user.summary || "No summary provided."}</p>
             </div>
           </div>
         </main>
+
+        <aside className="right-sidebar">
+          {/* Placeholder for future content */}
+        </aside>
       </div>
     </div>
   );
 }
 
 export default ProfilePage;
-

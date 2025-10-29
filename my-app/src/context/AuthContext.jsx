@@ -1,67 +1,96 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import { loginUser as apiLogin, registerUser as apiRegister } from '../services/api';
 
+// Create the context
 const AuthContext = createContext(null);
-const API_URL = 'http://localhost:3001/api';
 
+// Create the provider component
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true); // To check auth status on load
 
-  // Check if user is already logged in (from a previous session)
+  // Check for existing token in localStorage when app loads
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    if (token && user) {
-      setCurrentUser(JSON.parse(user));
-      // Set the token for all future axios requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    try {
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+      
+      if (token && user) {
+        setCurrentUser(JSON.parse(user));
+      }
+    } catch (e) {
+      console.error("Error parsing user data from localStorage", e);
+      // Clear bad data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } finally {
+      setLoading(false); // Done checking
     }
   }, []);
 
+  // Login function
   const login = async (email, password) => {
-    const response = await axios.post(`${API_URL}/login`, { email, password });
-    const { token, user } = response.data;
-    
-    // Store in localStorage
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+    try {
+      const response = await apiLogin({ email, password });
+      const { token, user } = response.data;
 
-    // Store in state
-    setCurrentUser(user);
-    
-    // Set token for all future requests
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Store in localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Store in state
+      setCurrentUser(user);
+      return { success: true };
+    } catch (error) {
+      console.error('Login failed:', error.response?.data?.error || error.message);
+      return { success: false, error: error.response?.data?.error || 'Login failed' };
+    }
   };
 
-  const register = async (userData) => {
-    await axios.post(`${API_URL}/register`, userData);
+  // Register function
+  const register = async (name, email, password, isEmployer) => {
+    try {
+      // description: 0 = employer, 1 = employee/user
+      const description = isEmployer ? 0 : 1;
+      await apiRegister({ name, email, password, description });
+      return { success: true };
+    } catch (error) {
+      console.error('Registration failed:', error.response?.data?.error || error.message);
+      return { success: false, error: error.response?.data?.error || 'Registration failed' };
+    }
   };
 
+  // Logout function
   const logout = () => {
     // Clear from localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
     // Clear from state
     setCurrentUser(null);
-    
-    // Remove token from axios headers
-    delete axios.defaults.headers.common['Authorization'];
   };
 
-  // The "value" is what all child components can access
   const value = {
     currentUser,
     login,
     register,
-    logout
+    logout,
+    isAuthenticated: !!currentUser, // True if currentUser is not null
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // Don't render app until we've checked for a token
+  if (loading) {
+    return <div>Loading app...</div>; // Or a proper spinner
+  }
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// This is a custom hook to easily access the context
+// Custom hook to use the auth context
 export const useAuth = () => {
   return useContext(AuthContext);
 };

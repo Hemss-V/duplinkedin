@@ -1,85 +1,99 @@
-// my-app/src/components/Chat/ChatWindow.jsx
+// src/components/Chat/ChatWindow.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { getMessages, sendMessage } from '../../services/api';
+import { getMessages, sendMessage, getUserProfile } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 function ChatWindow({ selectedUserId }) {
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [otherUser, setOtherUser] = useState(null);
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
-  const messagesEndRef = useRef(null);
+  
+  // Ref for the message list div
+  const messageListRef = useRef(null);
 
+  // Function to scroll to the bottom
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messageListRef.current) {
+      messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+    }
   };
 
+  // Fetch messages and user info
   useEffect(() => {
-    if (selectedUserId) {
-      setLoading(true);
-      getMessages(selectedUserId)
-        .then(res => {
-          setMessages(res.data);
-        })
-        .catch(err => console.error("Error fetching messages:", err))
-        .finally(() => setLoading(false));
-    }
+    setLoading(true);
+    // Fetch message history and the other user's profile info
+    Promise.all([
+      getMessages(selectedUserId),
+      getUserProfile(selectedUserId)
+    ])
+    .then(([messagesResponse, userResponse]) => {
+      setMessages(messagesResponse.data);
+      setOtherUser(userResponse.data);
+    })
+    .catch(err => {
+      console.error("Error fetching chat data:", err);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
   }, [selectedUserId]);
 
+  // Scroll to bottom when messages load
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (e) => {
+  // Handle sending a new message
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedUserId) return;
+    if (!newMessage.trim()) return;
 
     const messageData = {
-      receiver_id: selectedUserId,
-      content: newMessage
+      receiverId: selectedUserId,
+      content: newMessage,
     };
 
-    sendMessage(messageData)
-      .then(() => {
-        setNewMessage('');
-        setMessages(prev => [
-          ...prev, 
-          { 
-            ...messageData, 
-            sender_id: currentUser.user_id, 
-            content_sent_at: new Date().toISOString() 
-          }
-        ]);
-      })
-      .catch(err => console.error("Error sending message:", err));
+    try {
+      const response = await sendMessage(messageData);
+      // Add new message to the state instantly
+      setMessages(prevMessages => [...prevMessages, response.data]);
+      setNewMessage(''); // Clear input
+      // Scroll to new message
+      scrollToBottom();
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
   };
 
   if (loading) {
-    return <div className="chat-window loading">Loading...</div>;
+    return <div className="chat-window-placeholder"><h2>Loading chat...</h2></div>;
   }
-
-  if (!selectedUserId) {
-    return (
-      <div className="chat-window-placeholder">
-        <h2>Select a conversation</h2>
-        <p>Start a new chat from your connections or continue a previous conversation.</p>
-      </div>
-    );
+  if (!otherUser) {
+    return <div className="chat-window-placeholder"><h2>Error loading user.</h2></div>;
   }
 
   return (
-    <main className="chat-window">
-      <div className="message-list">
-        {messages.map((msg, index) => (
+    <section className="chat-window">
+      <header className="chat-header">
+        <Link to={`/profile/${otherUser.user_id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          {otherUser.name}
+        </Link>
+      </header>
+
+      <div className="message-list" ref={messageListRef}>
+        {messages.map(msg => (
           <div 
-            key={index} 
-            className={`message-bubble ${msg.sender_id === currentUser.user_id ? 'sent' : 'received'}`}
+            key={msg.message_id}
+            className={`message-bubble ${msg.sender_id === currentUser.userId ? 'sent' : 'received'}`}
           >
             {msg.content}
           </div>
         ))}
-        <div ref={messagesEndRef} />
       </div>
+
       <form className="message-form" onSubmit={handleSendMessage}>
         <input
           type="text"
@@ -89,7 +103,7 @@ function ChatWindow({ selectedUserId }) {
         />
         <button type="submit">Send</button>
       </form>
-    </main>
+    </section>
   );
 }
 

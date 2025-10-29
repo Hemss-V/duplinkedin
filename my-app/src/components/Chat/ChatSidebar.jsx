@@ -1,64 +1,88 @@
-import React, { useState, useEffect } from 'react';
+// src/components/Chat/ChatSidebar.jsx
+import React, { useState, useEffect, useMemo } from 'react';
 import { getConversations, getConnections } from '../../services/api';
 
-function ChatSidebar({ selectedUserId, onSelectUser }) {
-  const [tab, setTab] = useState('conversations'); // 'conversations' or 'connections'
+function ChatSidebar({ onSelectConversation, selectedUserId }) {
   const [conversations, setConversations] = useState([]);
   const [connections, setConnections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Fetch both lists when the component loads
-    getConversations()
-      .then(res => setConversations(res.data))
-      .catch(err => console.error("Error fetching conversations:", err));
-    
-    getConnections()
-      .then(res => setConnections(res.data))
-      .catch(err => console.error("Error fetching connections:", err));
+    setLoading(true);
+    // Fetch both conversations and connections
+    Promise.all([
+      getConversations(),
+      getConnections()
+    ])
+    .then(([convResponse, connResponse]) => {
+      setConversations(convResponse.data);
+      setConnections(connResponse.data);
+    })
+    .catch(err => {
+      console.error("Error fetching chat sidebar data:", err);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
   }, []);
+
+  // Filter connections to only show those *not* already in conversations
+  const newConnections = useMemo(() => {
+    const conversationUserIds = new Set(conversations.map(c => c.user_id));
+    return connections.filter(conn => !conversationUserIds.has(conn.user_id));
+  }, [conversations, connections]);
+
+  // Filter lists based on search term
+  const filteredConversations = conversations.filter(c => 
+    c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const filteredNewConnections = newConnections.filter(c => 
+    c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const renderUserList = (users) => (
+    <div className="user-list">
+      {users.map(user => (
+        <div 
+          key={user.user_id} 
+          className={`user-list-item ${selectedUserId === user.user_id ? 'active' : ''}`}
+          onClick={() => onSelectConversation(user.user_id)}
+        >
+          {/* Placeholder for profile pic */}
+          <div style={{ width: '40px', height: '40px', background: '#ccc', borderRadius: '50%' }} />
+          <div>
+            <div className="user-name">{user.name}</div>
+            {user.last_message && (
+              <div className="last-message">{user.last_message}</div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <aside className="chat-sidebar">
-      <div className="chat-sidebar-header">
-        <button onClick={() => setTab('conversations')} className={tab === 'conversations' ? 'active' : ''}>
-          Chats
-        </button>
-        <button onClick={() => setTab('connections')} className={tab === 'connections' ? 'active' : ''}>
-          New Chat
-        </button>
-      </div>
+      <input 
+        type="search"
+        className="chat-search"
+        placeholder="Search connections..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
 
-      <div className="chat-list">
-        {tab === 'conversations' && (
-          <ul>
-            {conversations.map(convo => (
-              <li 
-                key={convo.user_id} 
-                onClick={() => onSelectUser(convo.user_id)}
-                className={selectedUserId === convo.user_id ? 'active' : ''}
-              >
-                <span className="chat-list-name">{convo.name}</span>
-                <span className="chat-list-preview">{convo.lastMessage}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        
-        {tab === 'connections' && (
-          <ul>
-            {connections.map(conn => (
-              <li 
-                key={conn.user_id} 
-                onClick={() => onSelectUser(conn.user_id)}
-                className={selectedUserId === conn.user_id ? 'active' : ''}
-              >
-                <span className="chat-list-name">{conn.name}</span>
-                <span className="chat-list-preview">{conn.headline}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {loading && <div>Loading...</div>}
+
+      <h2>Conversations</h2>
+      {filteredConversations.length > 0 ? 
+        renderUserList(filteredConversations) : 
+        !loading && <p style={{ padding: '0 10px' }}>No conversations yet.</p>}
+
+      <h2>New Message</h2>
+      {filteredNewConnections.length > 0 ? 
+        renderUserList(filteredNewConnections) : 
+        !loading && <p style={{ padding: '0 10px' }}>No new connections to message.</p>}
     </aside>
   );
 }

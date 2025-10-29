@@ -1,43 +1,47 @@
-// my-app/src/components/Post/CreatePostForm.jsx
+// src/components/Post/CreatePostForm.jsx
 import React, { useState } from 'react';
 import { createPost } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
 
 function CreatePostForm({ onPostCreated }) {
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState('');
-  const { currentUser } = useAuth();
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!content.trim()) return setError('Post cannot be empty.');
-    if (!currentUser) return setError('You must be logged in to post.');
+    if (!content.trim()) {
+      setError('Post cannot be empty.');
+      return;
+    }
 
     setIsPosting(true);
     setError('');
 
-    // UPDATED: We only send the content.
+    // The user_id is now handled by the token on the server!
+    // We only need to send the content.
     const postData = {
       content: content,
+      // No user_id needed!
     };
 
     createPost(postData)
       .then(response => {
-        setContent('');
-        onPostCreated();
+        console.log('Post created!', response.data);
+        setContent(''); // Clear the textarea
+        onPostCreated(); // Tell the parent component to refresh/close
       })
       .catch(err => {
-        setError('Failed to create post.');
+        console.error('Error creating post:', err);
+        setError('Failed to create post. Please try again.');
       })
       .finally(() => {
-        setIsPosting(false);
+        setIsPosting(false); // Re-enable the button
       });
   };
 
   return (
     <div className="create-post-container">
-      <h2>Create a New Post</h2>
+      <h2>Create a new post</h2>
       <form onSubmit={handleSubmit}>
         <textarea
           value={content}
