@@ -2,17 +2,18 @@
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
-const jwt = require('jsonwebtoken'); // <-- We need this for auth
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt'); // <-- ADDED for password hashing
 
 const app = express();
 const port = 3001;
+const saltRounds = 10; // Standard cost factor for bcrypt
 
 // --- 1. Middleware ---
 app.use(cors());
 app.use(express.json());
 
 // --- 2. Database Connection ---
-// !! REPLACE with your real database details !!
 const dbConnection = mysql.createConnection({
   host: 'localhost',
   user: 'root', // Your user
@@ -29,34 +30,25 @@ dbConnection.connect(err => {
 });
 
 // --- 3. JWT Secret ---
-// This key is used to sign and verify tokens. Keep it secret!
 const JWT_SECRET = 'your-super-secret-key-123'; // Change this to a random string
 
 // --- 4. Auth Middleware ---
-// This function acts as a "security guard" for our protected routes
 const protectRoute = (req, res, next) => {
-  // Get the token from the 'Authorization' header
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
 
-  const token = authHeader.split(' ')[1]; // Get the token part
+  const token = authHeader.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ error: 'Access denied. Token missing.' });
   }
 
   try {
-    // Verify the token
     const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Add the user's ID to the request object
-    // 'decoded.userId' comes from the payload we created during login
     req.userId = decoded.userId; 
-    
-    // Proceed to the route
     next(); 
   } catch (ex) {
     console.error("Invalid token:", ex.message);
@@ -75,19 +67,25 @@ app.post('/api/register', (req, res) => {
     return res.status(400).json({ error: 'Name, email, and password are required.' });
   }
   
-  // NOTE: Passwords should be HASHED in a real app using bcrypt
-  // For this project, we store it as plain text (NOT SECURE)
-  const query = 'INSERT INTO users (name, email, password, description, headline, summary, age) VALUES (?, ?, ?, ?, "", "", NULL)';
-  
-  dbConnection.query(query, [name, email, password, description], (err, results) => {
+  // Hash the password
+  bcrypt.hash(password, saltRounds, (err, hashedPassword) => {
     if (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        return res.status(400).json({ error: 'Email already exists.' });
-      }
-      console.error('Database error on register:', err);
-      return res.status(500).json({ error: err.message });
+      console.error('Error hashing password:', err);
+      return res.status(500).json({ error: 'Server error during registration.' });
     }
-    res.status(201).json({ message: 'User registered successfully!' });
+
+    const query = 'INSERT INTO users (name, email, password, description, headline, summary, age) VALUES (?, ?, ?, ?, "", "", NULL)';
+    
+    dbConnection.query(query, [name, email, hashedPassword, description], (err, results) => {
+      if (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ error: 'Email already exists.' });
+        }
+        console.error('Database error on register:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({ message: 'User registered successfully!' });
+    });
   });
 });
 
@@ -110,26 +108,33 @@ app.post('/api/login', (req, res) => {
 
     const user = results[0];
 
-    // Check password (plain text, NOT SECURE)
-    if (user.password !== password) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
-    }
+    // Compare hashed password
+    bcrypt.compare(password, user.password, (err, isMatch) => {
+      if (err) {
+        console.error('Error comparing password:', err);
+        return res.status(500).json({ error: 'Server error during login.' });
+      }
 
-    // --- Login Successful: Create a JWT ---
-    const tokenPayload = {
-      userId: user.user_id,
-      email: user.email,
-      name: user.name,
-      description: user.description
-    };
-    
-    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' }); // Token lasts 24 hours
+      if (!isMatch) {
+        // Passwords don't match
+        return res.status(400).json({ error: 'Invalid email or password.' });
+      }
 
-    // Send the token and user info back
-    res.json({
-      message: 'Login successful!',
-      token: token,
-      user: tokenPayload // Send user info to store in context
+      // --- Login Successful: Create a JWT ---
+      const tokenPayload = {
+        userId: user.user_id,
+        email: user.email,
+        name: user.name,
+        description: user.description
+      };
+      
+      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
+
+      res.json({
+        message: 'Login successful!',
+        token: token,
+        user: tokenPayload
+      });
     });
   });
 });
@@ -158,15 +163,13 @@ app.get('/api/posts', protectRoute, (req, res) => {
 // POST /api/posts - Create a new post
 app.post('/api/posts', protectRoute, (req, res) => {
   const { content } = req.body;
-  const userId = req.userId; // <-- Get user ID from the protected route
+  const userId = req.userId;
 
   if (!content) {
     return res.status(400).json({ error: 'Post content is required.' });
   }
   
-  // Hardcode hashtags for now - we'll fix this later
   const hashtags = ['project', 'update']; // Example
-
   const postQuery = 'INSERT INTO posts (content, content_sent_at, user_id) VALUES (?, NOW(), ?)';
   
   dbConnection.query(postQuery, [content, userId], (err, results) => {
@@ -176,9 +179,6 @@ app.post('/api/posts', protectRoute, (req, res) => {
     }
     
     const postId = results.insertId;
-
-    // --- Insert Hashtags ---
-    // Create an array of values for the hashtag query
     const hashtagValues = hashtags.map(tag => [tag, postId]);
     const hashtagQuery = 'INSERT INTO hashtags (hashtag, post_id) VALUES ?';
 
@@ -186,12 +186,10 @@ app.post('/api/posts', protectRoute, (req, res) => {
       dbConnection.query(hashtagQuery, [hashtagValues], (err_h, results_h) => {
         if (err_h) {
           console.error("Database error on hashtag insertion:", err_h);
-          // Don't fail the whole post, just log the error
         }
         res.status(201).json({ message: 'Post created successfully!', postId: postId });
       });
     } else {
-      // No hashtags to insert
       res.status(201).json({ message: 'Post created successfully!', postId: postId });
     }
   });
@@ -233,7 +231,7 @@ app.get('/api/posts/:postId/comments', protectRoute, (req, res) => {
 app.post('/api/posts/:postId/comments', protectRoute, (req, res) => {
   const postId = req.params.postId;
   const { comment_content } = req.body;
-  const commenterId = req.userId; // <-- Get user ID from protected route
+  const commenterId = req.userId;
 
   if (!comment_content) {
     return res.status(400).json({ error: 'Comment content is required.' });
@@ -246,17 +244,6 @@ app.post('/api/posts/:postId/comments', protectRoute, (req, res) => {
       console.error("Database error on comment creation:", err);
       return res.status(500).json({ error: err.message });
     }
-    
-    // Send back the new comment with the user's name
-    const newComment = {
-      comment_id: results.insertId,
-      comment_content: comment_content,
-      created_at: new Date().toISOString(),
-      commenter_id: commenterId,
-      name: req.body.name // We should fetch this, but for speed we'll assume it's passed (or get from token)
-    };
-    // A better way would be to get name from req.userId, but that requires another query.
-    // Let's just send back the ID.
     res.status(201).json({ message: 'Comment added!', insertId: results.insertId });
   });
 });
@@ -264,18 +251,16 @@ app.post('/api/posts/:postId/comments', protectRoute, (req, res) => {
 // --- USER & PROFILE ENDPOINTS ---
 
 // GET /api/users/:userId - Get a single user's profile
+// *** FIXED for connections table ***
 app.get('/api/users/:userId', protectRoute, (req, res) => {
   const userId = req.params.userId;
   const currentUserId = req.userId; // The person who is VIEWING
 
-  // Query to get user details
   const userQuery = 'SELECT user_id, name, headline, summary, description FROM users WHERE user_id = ?';
-  
-  // Query to check connection status
   const connectionQuery = `
     SELECT status
     FROM connections
-    WHERE (requester_id = ? AND receiver_id = ?) OR (requester_id = ? AND receiver_id = ?)
+    WHERE (connection1_id = ? AND connection2_id = ?) OR (connection1_id = ? AND connection2_id = ?)
   `;
   
   dbConnection.query(userQuery, [userId], (err, userResults) => {
@@ -284,13 +269,11 @@ app.get('/api/users/:userId', protectRoute, (req, res) => {
 
     const userProfile = userResults[0];
 
-    // Don't check connection if user is viewing their own profile
     if (parseInt(userId) === currentUserId) {
       userProfile.connectionStatus = 'self';
       return res.json(userProfile);
     }
     
-    // Check connection status
     dbConnection.query(connectionQuery, [currentUserId, userId, userId, currentUserId], (err, connectionResults) => {
       if (err) return res.status(500).json({ error: err.message });
 
@@ -298,17 +281,20 @@ app.get('/api/users/:userId', protectRoute, (req, res) => {
         userProfile.connectionStatus = 'not_connected';
       } else {
         const status = connectionResults[0].status;
+        
+        // This assumes 'status' is a string 'pending' or 'accepted'.
+        // If 'status' is tinyint (e.g., 0=pending, 1=accepted), this logic must change.
         if (status === 'accepted') {
           userProfile.connectionStatus = 'connected';
         } else if (status === 'pending') {
-          // Check who sent it
-          const pendingQuery = 'SELECT requester_id FROM connections WHERE (requester_id = ? AND receiver_id = ?) AND status = "pending"';
+          const pendingQuery = 'SELECT connection1_id FROM connections WHERE (connection1_id = ? AND connection2_id = ?) AND status = "pending"';
+          
           dbConnection.query(pendingQuery, [currentUserId, userId], (err, pendingResults) => {
             if (err) return res.status(500).json({ error: err.message });
             if (pendingResults.length > 0) {
-              userProfile.connectionStatus = 'pending_sent'; // You sent it
+              userProfile.connectionStatus = 'pending_sent';
             } else {
-              userProfile.connectionStatus = 'pending_received'; // You received it
+              userProfile.connectionStatus = 'pending_received';
             }
             res.json(userProfile);
           });
@@ -321,13 +307,14 @@ app.get('/api/users/:userId', protectRoute, (req, res) => {
   });
 });
 
-// GET /api/users/:userId/connections - Get connection count (placeholder)
+// GET /api/users/:userId/connections - Get connection count
+// *** FIXED for connections table ***
 app.get('/api/users/:userId/connections', protectRoute, (req, res) => {
   const userId = req.params.userId;
   const query = `
     SELECT COUNT(*) as count 
     FROM connections 
-    WHERE (requester_id = ? OR receiver_id = ?) AND status = 'accepted'
+    WHERE (connection1_id = ? OR connection2_id = ?) AND status = 'accepted'
   `;
   dbConnection.query(query, [userId, userId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -338,13 +325,14 @@ app.get('/api/users/:userId/connections', protectRoute, (req, res) => {
 // --- CONNECTION ENDPOINTS ---
 
 // GET /api/connections - Get all *accepted* connections for the logged-in user
+// *** FIXED for connections table ***
 app.get('/api/connections', protectRoute, (req, res) => {
   const userId = req.userId;
   const query = `
     SELECT u.user_id, u.name, u.headline
     FROM users u
-    JOIN connections c ON (u.user_id = c.receiver_id OR u.user_id = c.requester_id)
-    WHERE (c.requester_id = ? OR c.receiver_id = ?) AND c.status = 'accepted' AND u.user_id != ?
+    JOIN connections c ON (u.user_id = c.connection2_id OR u.user_id = c.connection1_id)
+    WHERE (c.connection1_id = ? OR c.connection2_id = ?) AND c.status = 'accepted' AND u.user_id != ?
   `;
   
   dbConnection.query(query, [userId, userId, userId], (err, results) => {
@@ -354,28 +342,25 @@ app.get('/api/connections', protectRoute, (req, res) => {
 });
 
 // GET /api/connections/all - Get ALL users and their connection status
+// *** FIXED for connections table ***
 app.get('/api/connections/all', protectRoute, (req, res) => {
   const userId = req.userId;
-  
-  // This query is complex. It lists all users *except* the current one.
-  // It uses a LEFT JOIN to check the 'connections' table for any relationship.
   const query = `
     SELECT 
       u.user_id, 
       u.name, 
       u.headline,
       c.status,
-      CASE WHEN c.requester_id = ? THEN 'sent' ELSE 'received' END as request_direction
+      CASE WHEN c.connection1_id = ? THEN 'sent' ELSE 'received' END as request_direction
     FROM users u
     LEFT JOIN connections c 
-      ON (c.requester_id = u.user_id AND c.receiver_id = ?) OR (c.requester_id = ? AND c.receiver_id = u.user_id)
+      ON (c.connection1_id = u.user_id AND c.connection2_id = ?) OR (c.connection1_id = ? AND c.connection2_id = u.user_id)
     WHERE u.user_id != ?
   `;
   
   dbConnection.query(query, [userId, userId, userId, userId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     
-    // Process the results to simplify the status
     const processedResults = results.map(user => {
       let connectionStatus = 'not_connected';
       if (user.status === 'accepted') {
@@ -395,6 +380,7 @@ app.get('/api/connections/all', protectRoute, (req, res) => {
 });
 
 // POST /api/connections/request - Send a connection request
+// *** FIXED for connections table ***
 app.post('/api/connections/request', protectRoute, (req, res) => {
   const requesterId = req.userId;
   const { receiverId } = req.body;
@@ -403,7 +389,10 @@ app.post('/api/connections/request', protectRoute, (req, res) => {
     return res.status(400).json({ error: 'Cannot connect with yourself.' });
   }
 
-  const query = 'INSERT INTO connections (requester_id, receiver_id, status) VALUES (?, ?, "pending")';
+  // We assume connection1_id is requester, connection2_id is receiver
+  // Added created_at column from your schema
+  const query = 'INSERT INTO connections (connection1_id, connection2_id, status, created_at) VALUES (?, ?, "pending", NOW())';
+  
   dbConnection.query(query, [requesterId, receiverId], (err, results) => {
     if (err) {
       if (err.code === 'ER_DUP_ENTRY') {
@@ -416,11 +405,13 @@ app.post('/api/connections/request', protectRoute, (req, res) => {
 });
 
 // POST /api/connections/accept - Accept a connection request
+// *** FIXED for connections table ***
 app.post('/api/connections/accept', protectRoute, (req, res) => {
-  const receiverId = req.userId;
-  const { requesterId } = req.body;
+  const receiverId = req.userId; // You are the receiver
+  const { requesterId } = req.body; // The person who sent it
   
-  const query = 'UPDATE connections SET status = "accepted" WHERE requester_id = ? AND receiver_id = ? AND status = "pending"';
+  // We must find the request where connection1_id sent it AND connection2_id is you
+  const query = 'UPDATE connections SET status = "accepted" WHERE connection1_id = ? AND connection2_id = ? AND status = "pending"';
   
   dbConnection.query(query, [requesterId, receiverId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -431,15 +422,12 @@ app.post('/api/connections/accept', protectRoute, (req, res) => {
   });
 });
 
+
 // --- MESSAGING ENDPOINTS ---
 
 // GET /api/messages/conversations - Get list of users the logged-in user has chatted with
 app.get('/api/messages/conversations', protectRoute, (req, res) => {
   const userId = req.userId;
-  
-  // This complex query finds all unique users (sender_id or receiver_id) that are not the current user,
-  // joins with the 'users' table to get their name,
-  // and gets the *last* message exchanged between them.
   const query = `
     WITH UserConversations AS (
       SELECT 
@@ -509,7 +497,6 @@ app.post('/api/messages', protectRoute, (req, res) => {
       console.error('Error sending message:', err);
       return res.status(500).json({ error: err.message });
     }
-    // Return the new message object
     res.status(201).json({
       message_id: results.insertId,
       content: content,
